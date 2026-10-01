@@ -1,16 +1,21 @@
 {
   "name": "email-assistant",
   "version": "1.0.0",
-  "description": "Planning repository for a locally hosted, Python-first Inbox Command Center for early-stage founders.",
-  "main": "index.js",
+  "description": "Local frontend assets for Email Assistant.",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "npm run build:css && npm run build:vendor",
+    "build:css": "tailwindcss -i assets/app.css -o dashboard/static/dist/app.css --minify",
+    "build:vendor": "mkdir -p dashboard/static/vendor && cp node_modules/htmx.org/dist/htmx.min.js dashboard/static/vendor/htmx.min.js && cp node_modules/alpinejs/dist/cdn.min.js dashboard/static/vendor/alpine.min.js",
+    "check": "npm run build"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
+    "alpinejs": "^3.15.8",
+    "htmx.org": "^2.0.8",
     "tailwindcss": "^4.3.3"
   }
 }
