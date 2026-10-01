@@ -1,0 +1,82 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Command Center · Email Assistant</title>
+    <link rel="stylesheet" href="{% static 'dist/app.css' %}">
+    <script src="{% static 'vendor/htmx.min.js' %}" defer></script>
+    <script src="{% static 'vendor/alpine.min.js' %}" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to command center</a>
+    <header class="topbar">
+      <div>
+        <span class="eyebrow">Email Assistant</span>
+        <strong>{{ workspace.name }}</strong>
+      </div>
+      <div class="topbar-actions">
+        <span class="status"><span aria-hidden="true">○</span> Setup incomplete</span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button class="text-button" type="submit">Sign out</button>
+        </form>
+      </div>
+    </header>
+
+    <main id="main-content" class="workspace" x-data="{ assistantOpen: true, lens: 'priorities' }">
+      <section class="command-center" aria-labelledby="page-title">
+        <div class="briefing-header">
+          <div>
+            <p class="eyebrow">Morning briefing</p>
+            <h1 id="page-title">Your command center is ready</h1>
+            <p class="subtle">Connect Gmail in the next setup step to see decision-ready inbox intelligence.</p>
+          </div>
+          <span class="freshness">Not generated yet</span>
+        </div>
+
+        <section class="priority-strip" aria-labelledby="priority-title">
+          <div>
+            <p class="eyebrow">Founder priorities</p>
+            <h2 id="priority-title">No confirmed priorities</h2>
+          </div>
+          <span class="quiet-label">Available in a later setup step</span>
+        </section>
+
+        <div class="mobile-switch" role="group" aria-label="Workspace view">
+          <button type="button" :class="{ active: !assistantOpen }" :aria-pressed="!assistantOpen" @click="assistantOpen = false">Command center</button>
+          <button type="button" :class="{ active: assistantOpen }" :aria-pressed="assistantOpen" @click="assistantOpen = true">Assistant</button>
+        </div>
+
+        <section class="lens-panel" :class="assistantOpen ? 'mobile-hidden' : ''">
+          <div class="tabs" role="tablist" aria-label="Command center lenses">
+            <button id="tab-priorities" role="tab" type="button" :aria-selected="lens === 'priorities'" @click="lens = 'priorities'">Founder Priorities</button>
+            <button id="tab-actions" role="tab" type="button" :aria-selected="lens === 'actions'" @click="lens = 'actions'">Actions</button>
+            <button id="tab-urgency" role="tab" type="button" :aria-selected="lens === 'urgency'" @click="lens = 'urgency'">Urgency</button>
+          </div>
+          <div class="empty-state" role="tabpanel" :aria-labelledby="'tab-' + lens">
+            <div class="empty-icon" aria-hidden="true">◇</div>
+            <h2>No inbox items yet</h2>
+            <p>Your emails will appear here after you connect Gmail and complete the first read-only sync.</p>
+          </div>
+        </section>
+      </section>
+
+      <aside class="assistant" :class="assistantOpen ? '' : 'mobile-hidden'" aria-labelledby="assistant-title">
+        <div>
+          <p class="eyebrow">Inbox intelligence</p>
+          <h2 id="assistant-title">Assistant</h2>
+        </div>
+        <div class="assistant-empty">
+          <p>Once your inbox is connected, ask what needs attention, why it matters, or what can wait.</p>
+        </div>
+        <label for="assistant-input">Ask about your inbox</label>
+        <div class="composer">
+          <input id="assistant-input" type="text" placeholder="Assistant unavailable during setup" disabled>
+          <button type="button" disabled>Send</button>
+        </div>
+      </aside>
+    </main>
+  </body>
+</html>

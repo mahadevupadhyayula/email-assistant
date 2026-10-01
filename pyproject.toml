@@ -16,6 +16,7 @@ dependencies = [
     "django-htmx>=1.29.0",
     "psycopg[binary]>=3.3.6",
     "uvicorn[standard]>=0.54.0",
+    "whitenoise[brotli]>=6.11.0",
 ]
 
 [project.scripts]
@@ -37,3 +38,28 @@ dev = [
     "pytest-django>=4.14.0",
     "ruff>=0.16.9",
 ]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+python_files = ["test_*.py", "tests.py"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["**/migrations/*.py"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main"]
+strict = true
+exclude = ["accounts/migrations/"]
+
+[[tool.mypy.overrides]]
+module = ["celery.*", "django_celery_beat.*", "dj_database_url", "environ"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"
