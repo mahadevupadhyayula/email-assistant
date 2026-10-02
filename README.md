@@ -1,7 +1,8 @@
 # Email Assistant
 
 A locally hosted, Python-first Inbox Command Center for early-stage founders. Build
-Unit 01 provides the local, workspace-scoped application foundation.
+Units 01–02 provide the local foundation, Google identity, and a separate read-only
+Gmail consent lifecycle. Email sync is not implemented yet.
 
 Start with:
 
@@ -27,6 +28,28 @@ docker compose ps
 Open <http://localhost:8000>, sign in with the development credentials from the
 bootstrap command, and replace the example password immediately if the local
 environment is shared. Running the bootstrap command again is safe.
+
+## Google OAuth configuration
+
+Create a Google OAuth web client and add these exact local redirect URIs:
+
+- `http://localhost:8000/accounts/google/callback/`
+- `http://localhost:8000/gmail/callback/`
+
+Set `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, and a local Fernet key
+in `.env`. Generate the key once and keep it stable; changing it makes stored token
+envelopes unreadable:
+
+```bash
+uv run python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+```
+
+Google sign-in requests only `openid`, `email`, and `profile`. The later Connect
+Gmail action is separate and requests `gmail.readonly` plus identity scopes needed
+to prevent account mismatch. Credentials are encrypted in the database. Disconnect
+attempts provider revocation, clears the local token envelope, and does not delete
+stored inbox data. The local Fernet key is an MVP strategy intended for replacement
+by managed key storage before hosted deployment.
 
 Service health is visible through `docker compose ps`. Django exposes liveness at
 `/health/live/` and database/Redis readiness at `/health/ready/`. Startup fails
@@ -63,5 +86,5 @@ Tests use an isolated in-memory SQLite database; the Docker runtime and integrat
 topology use PostgreSQL. Local environment files, virtual environments, installed
 JavaScript packages, databases, caches, and build output are excluded from Git.
 
-Unit 01 intentionally contains no Google OAuth, Gmail access, or model calls. Follow
+Unit 02 intentionally performs no email import, Gmail mutation, or model call. Follow
 [`context/progress-tracker.md`](context/progress-tracker.md) for the next approved unit.

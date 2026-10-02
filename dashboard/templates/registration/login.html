@@ -11,7 +11,9 @@
     <main class="auth-card">
       <p class="eyebrow">Email Assistant</p>
       <h1>Open your command center</h1>
-      <p class="subtle">Local development access only. Google sign-in is introduced in Unit 02.</p>
+      <p class="subtle">Sign in with Google to create or enter your private founder workspace.</p>
+      <a class="primary-button button-link" href="{% url 'google-login' %}">Continue with Google</a>
+      <div class="auth-divider"><span>Local development</span></div>
       {% if form.errors %}<p class="form-error" role="alert">That username and password did not match.</p>{% endif %}
       <form method="post">
         {% csrf_token %}

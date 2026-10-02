@@ -1,0 +1,29 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Review Gmail access · Email Assistant</title>
+    <link rel="stylesheet" href="{% static 'dist/app.css' %}">
+  </head>
+  <body class="settings-page">
+    <main class="settings-card consent-card">
+      <a class="back-link" href="{% url 'gmail-connection' %}">← Gmail settings</a>
+      <p class="eyebrow">Separate Gmail consent</p>
+      <h1>Review read-only inbox access</h1>
+      <p class="subtle">Signing in identified you to Email Assistant. This next step separately authorizes inbox reading.</p>
+      <section class="disclosure-grid" aria-label="Gmail access disclosure">
+        <div><h2>What we read</h2><p>Gmail messages, threads, senders, dates, labels as source metadata, and mailbox profile information.</p></div>
+        <div><h2>What we store</h2><p>Encrypted access credentials and, after a later sync unit, normalized inbox data and derived intelligence.</p></div>
+        <div><h2>How long</h2><p>Email-derived data will expire 90 days after a thread’s latest activity unless deleted earlier.</p></div>
+        <div><h2>What we never modify</h2><p>We cannot send, delete, archive, label, or change read status. This unit does not import any email.</p></div>
+      </section>
+      <form method="post">
+        {% csrf_token %}
+        <button class="primary-button" type="submit">Continue to Google</button>
+        <a class="secondary-link" href="{% url 'gmail-connection' %}">Not now</a>
+      </form>
+    </main>
+  </body>
+</html>

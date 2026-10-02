@@ -1,0 +1,18 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign-in problem · Email Assistant</title>
+    <link rel="stylesheet" href="{% static 'dist/app.css' %}">
+  </head>
+  <body class="auth-page">
+    <main class="auth-card">
+      <p class="eyebrow">Email Assistant</p>
+      <h1>Google sign-in wasn’t completed</h1>
+      <p class="form-error" role="alert">{{ message|default:"The request expired, was denied, or could not be verified. No Gmail access was requested." }}</p>
+      <a class="primary-button button-link" href="{% url 'login' %}">Return to sign in</a>
+    </main>
+  </body>
+</html>
