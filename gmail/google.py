@@ -4,17 +4,28 @@ from typing import Any
 
 import requests
 from django.conf import settings
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 
 from accounts.google import client_config
 
 GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly"
-GMAIL_SCOPES = ("openid", "email", GMAIL_READONLY_SCOPE)
+GOOGLE_EMAIL_SCOPE = "email"
+GOOGLE_USERINFO_EMAIL_SCOPE = "https://www.googleapis.com/auth/userinfo.email"
+GMAIL_SCOPES = ("openid", GOOGLE_EMAIL_SCOPE, GMAIL_READONLY_SCOPE)
 
 
 class GmailProviderError(RuntimeError):
     """A safe provider error without token or response-body details."""
+
+
+class GmailCredentialRevokedError(GmailProviderError):
+    """The stored OAuth grant is permanently invalid."""
+
+
+class GmailTransientProviderError(GmailProviderError):
+    """The provider operation may succeed when retried."""
 
 
 @dataclass(frozen=True)
@@ -37,8 +48,24 @@ def gmail_flow(*, redirect_uri: str, code_verifier: str | None = None) -> Flow:
 
 def connected_mailbox(flow: Flow) -> ConnectedMailbox:
     credentials = flow.credentials
-    granted = tuple(credentials.scopes or ())
-    if set(granted) != set(GMAIL_SCOPES):
+    granted_scopes = credentials.granted_scopes
+    if granted_scopes is None:
+        if not credentials.has_scopes(GMAIL_SCOPES):
+            raise GmailProviderError("Google did not grant the required read-only access.")
+        granted_scopes = credentials.scopes
+    granted = tuple(granted_scopes or ())
+    granted_set = set(granted)
+    allowed_scopes = {
+        "openid",
+        GOOGLE_EMAIL_SCOPE,
+        GOOGLE_USERINFO_EMAIL_SCOPE,
+        GMAIL_READONLY_SCOPE,
+    }
+    if (
+        not {"openid", GMAIL_READONLY_SCOPE}.issubset(granted_set)
+        or not {GOOGLE_EMAIL_SCOPE, GOOGLE_USERINFO_EMAIL_SCOPE}.intersection(granted_set)
+        or not granted_set.issubset(allowed_scopes)
+    ):
         raise GmailProviderError("Google did not grant the required read-only access.")
     response = requests.get(
         "https://gmail.googleapis.com/gmail/v1/users/me/profile",
@@ -79,8 +106,13 @@ def refresh_credentials(payload: dict[str, Any]) -> dict[str, Any]:
         from google.auth.transport.requests import Request
 
         credentials.refresh(Request())  # type: ignore[no-untyped-call]
+    except RefreshError as exc:
+        oauth_response = next((arg for arg in exc.args if isinstance(arg, dict)), {})
+        if oauth_response.get("error") == "invalid_grant":
+            raise GmailCredentialRevokedError("Gmail access has been revoked.") from exc
+        raise GmailTransientProviderError("Gmail access could not be refreshed.") from exc
     except Exception as exc:
-        raise GmailProviderError("Gmail access could not be refreshed.") from exc
+        raise GmailTransientProviderError("Gmail access could not be refreshed.") from exc
     return {
         **payload,
         "access_token": credentials.token,

@@ -7,7 +7,13 @@ from accounts.models import User, Workspace
 from operations.services import record_audit_event
 
 from .crypto import decrypt_credentials, encrypt_credentials
-from .google import ConnectedMailbox, GmailProviderError, refresh_credentials, revoke_credentials
+from .google import (
+    ConnectedMailbox,
+    GmailCredentialRevokedError,
+    GmailProviderError,
+    refresh_credentials,
+    revoke_credentials,
+)
 from .models import GmailConnection
 
 
@@ -25,10 +31,10 @@ def refresh_mailbox_credentials(connection: GmailConnection) -> GmailConnection:
         raise GmailConnectionError("This Gmail connection is not active.")
     try:
         refreshed = refresh_credentials(decrypt_credentials(connection.encrypted_credentials))
-    except GmailProviderError as exc:
+    except GmailCredentialRevokedError as exc:
         connection.status = GmailConnection.Status.EXPIRED
         connection.encrypted_credentials = ""
-        connection.last_error_code = "refresh_failed"
+        connection.last_error_code = "refresh_revoked"
         connection.last_checked_at = timezone.now()
         connection.save(
             update_fields=(
@@ -40,6 +46,11 @@ def refresh_mailbox_credentials(connection: GmailConnection) -> GmailConnection:
             )
         )
         raise GmailConnectionError("Gmail access expired. Reconnect to continue.") from exc
+    except GmailProviderError as exc:
+        connection.last_error_code = "refresh_failed"
+        connection.last_checked_at = timezone.now()
+        connection.save(update_fields=("last_error_code", "last_checked_at", "updated_at"))
+        raise GmailConnectionError("Gmail access could not be refreshed. Please retry.") from exc
     now = timezone.now()
     connection.encrypted_credentials = encrypt_credentials(refreshed)
     connection.token_refreshed_at = now

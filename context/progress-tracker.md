@@ -106,7 +106,8 @@ Await the Unit 03 specification and explicit approval before beginning email syn
   missing renewable access, active duplicate mailbox use, and partial provider failure.
 - OAuth access and refresh credentials are encrypted before persistence and cleared on
   disconnect; templates, audit metadata, and tests expose no stored secret.
-- Refresh failure marks a connection expired; revoked and expired states render visibly.
+- Permanent refresh-token revocation marks a connection expired; transient refresh failures
+  retain encrypted credentials for retry, and revoked and expired states render visibly.
 - Workspace-scoped managers and authorization tests prevent cross-workspace connection access.
 - Disconnect attempts provider revocation, preserves a reversible connection record, and
   explicitly does not claim to delete previously stored email data.
@@ -115,9 +116,16 @@ Await the Unit 03 specification and explicit approval before beginning email syn
 - Tests use mocked Google boundaries. No external service, live mailbox, email sync,
   Gmail mutation, deployment, commit, push, or model call was performed.
 - Malformed Google sign-in session timestamps return the controlled OAuth error response.
-- Failed Gmail credential refreshes clear encrypted credentials when marking a connection expired.
+- Permanently revoked Gmail refresh credentials are cleared when the connection expires;
+  transient provider failures retain the encrypted credential envelope and connected state.
 - Gmail connections with retained credentials remain disconnectable for cleanup and revocation,
   regardless of their current connection status.
+- Google sign-in redirect targets now use Django's host-and-scheme validator, including
+  same-host enforcement and HTTPS downgrade protection, with regression coverage.
+- Google sign-in rejects inactive users before identity binding, workspace membership,
+  or audit creation while preserving the conflicting-subject response.
+- Gmail consent validation now prefers Google's reported granted scopes, accepts the
+  userinfo email alias, rejects unapproved scopes, and safely handles omitted grant metadata.
 
 ## Open questions
 

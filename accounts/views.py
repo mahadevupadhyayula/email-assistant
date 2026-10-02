@@ -1,6 +1,5 @@
 import secrets
 from datetime import datetime, timedelta
-from urllib.parse import urlsplit
 
 from django.contrib.auth import login
 from django.db import transaction
@@ -8,6 +7,7 @@ from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from operations.services import record_audit_event
 
@@ -20,10 +20,13 @@ STATE_LIFETIME = timedelta(minutes=10)
 
 def _safe_next(request: HttpRequest) -> str:
     candidate = request.GET.get("next", "")
-    parsed = urlsplit(candidate)
-    return (
-        candidate if candidate.startswith("/") and not parsed.netloc else reverse("command-center")
-    )
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return reverse("command-center")
 
 
 def google_login(request: HttpRequest) -> HttpResponse:
@@ -76,6 +79,9 @@ def google_login_callback(request: HttpRequest) -> HttpResponse:
                 return render(request, "registration/oauth_error.html", status=409)
             if user is None:
                 user = User(username=identity.email, email=identity.email)
+        if not user.is_active:
+            return render(request, "registration/oauth_error.html", status=403)
+        if user.google_subject != identity.subject:
             user.google_subject = identity.subject
             user.first_name = identity.given_name
             user.last_name = identity.family_name

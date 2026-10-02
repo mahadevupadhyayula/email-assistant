@@ -6,10 +6,21 @@ import pytest
 from cryptography.fernet import Fernet
 from django.urls import reverse
 from django.utils import timezone
+from google.auth.exceptions import RefreshError
 
 from accounts.models import Membership, User, Workspace
 from gmail.crypto import decrypt_credentials
-from gmail.google import GMAIL_READONLY_SCOPE, GMAIL_SCOPES, ConnectedMailbox
+from gmail.google import (
+    GMAIL_READONLY_SCOPE,
+    GMAIL_SCOPES,
+    GOOGLE_USERINFO_EMAIL_SCOPE,
+    ConnectedMailbox,
+    GmailCredentialRevokedError,
+    GmailProviderError,
+    GmailTransientProviderError,
+    connected_mailbox,
+    refresh_credentials,
+)
 from gmail.models import GmailConnection
 from operations.models import AuditEvent
 
@@ -41,6 +52,91 @@ def mailbox(email: str = "founder@example.com") -> ConnectedMailbox:
             "token_uri": "https://oauth2.googleapis.com/token",
         },
     )
+
+
+def google_credentials(
+    *, granted_scopes: tuple[str, ...] | None, requested_scopes: tuple[str, ...]
+) -> Mock:
+    credentials = Mock()
+    credentials.granted_scopes = granted_scopes
+    credentials.scopes = requested_scopes
+    credentials.has_scopes.return_value = set(GMAIL_SCOPES).issubset(requested_scopes)
+    credentials.token = "access-secret"
+    credentials.refresh_token = "refresh-secret"
+    credentials.token_uri = "https://oauth2.googleapis.com/token"
+    credentials.expiry = None
+    return credentials
+
+
+def gmail_profile_response() -> Mock:
+    response = Mock(status_code=200)
+    response.json.return_value = {"emailAddress": "founder@example.com"}
+    return response
+
+
+def test_connected_mailbox_prefers_granted_scopes_and_accepts_email_alias() -> None:
+    granted = ("openid", GOOGLE_USERINFO_EMAIL_SCOPE, GMAIL_READONLY_SCOPE)
+    flow = Mock(
+        credentials=google_credentials(granted_scopes=granted, requested_scopes=GMAIL_SCOPES)
+    )
+
+    with patch("gmail.google.requests.get", return_value=gmail_profile_response()):
+        result = connected_mailbox(flow)
+
+    assert result.scopes == granted
+
+
+def test_connected_mailbox_rejects_unapproved_granted_scope() -> None:
+    granted = (*GMAIL_SCOPES, "https://www.googleapis.com/auth/gmail.modify")
+    flow = Mock(
+        credentials=google_credentials(granted_scopes=granted, requested_scopes=GMAIL_SCOPES)
+    )
+
+    with pytest.raises(GmailProviderError, match="required read-only access"):
+        connected_mailbox(flow)
+
+
+def test_connected_mailbox_falls_back_to_complete_requested_scopes() -> None:
+    flow = Mock(credentials=google_credentials(granted_scopes=None, requested_scopes=GMAIL_SCOPES))
+
+    with patch("gmail.google.requests.get", return_value=gmail_profile_response()):
+        result = connected_mailbox(flow)
+
+    assert result.scopes == GMAIL_SCOPES
+
+
+def test_connected_mailbox_rejects_incomplete_requested_scope_fallback() -> None:
+    requested = ("openid", "email")
+    flow = Mock(credentials=google_credentials(granted_scopes=None, requested_scopes=requested))
+
+    with pytest.raises(GmailProviderError, match="required read-only access"):
+        connected_mailbox(flow)
+
+
+def test_refresh_credentials_maps_invalid_grant_to_revoked_error() -> None:
+    credentials = Mock()
+    credentials.refresh.side_effect = RefreshError(  # type: ignore[no-untyped-call]
+        "invalid_grant: Token has been revoked.", {"error": "invalid_grant"}
+    )
+
+    with (
+        patch("gmail.google.Credentials", return_value=credentials),
+        pytest.raises(GmailCredentialRevokedError, match="revoked"),
+    ):
+        refresh_credentials({"refresh_token": "refresh-secret"})
+
+
+def test_refresh_credentials_maps_other_refresh_errors_to_transient() -> None:
+    credentials = Mock()
+    credentials.refresh.side_effect = RefreshError(  # type: ignore[no-untyped-call]
+        "temporarily_unavailable", {"error": "temporarily_unavailable"}, retryable=True
+    )
+
+    with (
+        patch("gmail.google.Credentials", return_value=credentials),
+        pytest.raises(GmailTransientProviderError, match="could not be refreshed"),
+    ):
+        refresh_credentials({"refresh_token": "refresh-secret"})
 
 
 @pytest.mark.django_db
@@ -187,22 +283,47 @@ def test_active_mailbox_cannot_be_connected_to_two_workspaces(
 
 
 @pytest.mark.django_db
-def test_refresh_failure_marks_connection_expired(
+def test_revoked_refresh_clears_credentials_and_marks_connection_expired(
     founder: tuple[User, Workspace], encryption_key: str
 ) -> None:
-    from gmail.google import GmailProviderError
     from gmail.services import GmailConnectionError, connect_mailbox, refresh_mailbox_credentials
 
     user, workspace = founder
     connection = connect_mailbox(workspace=workspace, actor=user, mailbox=mailbox())
     with (
-        patch("gmail.services.refresh_credentials", side_effect=GmailProviderError("failed")),
+        patch(
+            "gmail.services.refresh_credentials",
+            side_effect=GmailCredentialRevokedError("revoked"),
+        ),
         pytest.raises(GmailConnectionError, match="expired"),
     ):
         refresh_mailbox_credentials(connection)
     connection.refresh_from_db()
     assert connection.status == GmailConnection.Status.EXPIRED
     assert connection.encrypted_credentials == ""
+    assert connection.last_error_code == "refresh_revoked"
+
+
+@pytest.mark.django_db
+def test_transient_refresh_failure_retains_credentials_and_connection(
+    founder: tuple[User, Workspace], encryption_key: str
+) -> None:
+    from gmail.services import GmailConnectionError, connect_mailbox, refresh_mailbox_credentials
+
+    user, workspace = founder
+    connection = connect_mailbox(workspace=workspace, actor=user, mailbox=mailbox())
+    encrypted_credentials = connection.encrypted_credentials
+    with (
+        patch(
+            "gmail.services.refresh_credentials",
+            side_effect=GmailTransientProviderError("temporary failure"),
+        ),
+        pytest.raises(GmailConnectionError, match="Please retry"),
+    ):
+        refresh_mailbox_credentials(connection)
+    connection.refresh_from_db()
+    assert connection.status == GmailConnection.Status.CONNECTED
+    assert connection.encrypted_credentials == encrypted_credentials
     assert connection.last_error_code == "refresh_failed"
 
 
