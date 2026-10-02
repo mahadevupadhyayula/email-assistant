@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current phase
 
-Build Unit 01 local foundation complete and verified.
+Build Unit 02 Google identity and read-only Gmail consent complete and verified.
 
 ## Current goal
 
-Await approval to begin Build Unit 02: Google identity and read-only Gmail consent.
+Await the Unit 03 specification and explicit approval before beginning email sync.
 
 ## Completed
 
@@ -53,6 +53,20 @@ Await approval to begin Build Unit 02: Google identity and read-only Gmail conse
   selection updates accessibly, and keyboard navigation reaches the skip link first.
 - Added WhiteNoise static delivery and build-time static collection after the live
   ASGI browser check exposed and verified the missing-asset failure mode.
+- Added Google application sign-in with identity-only scopes, PKCE, state validation,
+  ten-minute state expiry, verified identity binding, and automatic founder workspace creation.
+- Added a separate Gmail consent disclosure and OAuth lifecycle that requests only
+  Gmail read-only access plus the identity scopes required to prevent account mismatch.
+- Added the workspace-scoped `GmailConnection` contract with provider identity, exact
+  granted scopes, status/timestamps, encrypted credentials, and future sync cursors.
+- Added Fernet token envelopes using a local environment key, renewable-token refresh,
+  safe refresh-failure transitions, provider revocation, and local credential clearing.
+- Added workspace-scoped consent/sign-in/disconnect audit events without token or email
+  content in event metadata.
+- Added responsive Gmail settings, connection health, revoked/expired states, explicit
+  disconnect semantics, and a distinct data-deletion placeholder.
+- Documented local Google OAuth callback configuration, scope separation, encryption-key
+  handling, and the pre-hosting managed-key replacement requirement.
 
 ## Unit 01 acceptance evidence — 2026-10-01
 
@@ -73,13 +87,45 @@ Await approval to begin Build Unit 02: Google identity and read-only Gmail conse
 
 ## In progress
 
-- Next specification: Build Unit 02 — Google identity and separate read-only Gmail
-  consent. Implementation awaits explicit approval.
+- No implementation unit is in progress.
 
 ## Next up
 
-- Build Unit 02 only after explicit approval: Google identity and separate read-only
-  Gmail consent.
+- Restore/provide the missing build plan and Unit 03 specification, then begin Unit 03
+  only after explicit approval.
+
+## Unit 02 acceptance evidence — 2026-10-02
+
+- Google application sign-in and Gmail consent are separate routes, sessions, screens,
+  actions, and scope sets.
+- Identity authorization requests `openid`, `email`, and `profile`; mailbox consent adds
+  only `https://www.googleapis.com/auth/gmail.readonly` and has no mutation scope.
+- OAuth requests use state and PKCE, callbacks reject missing, mismatched, denied, or
+  older-than-ten-minute state, and redirect targets are restricted to local paths.
+- Gmail callback rejects signed-in/mailbox account mismatch, incomplete scope grants,
+  missing renewable access, active duplicate mailbox use, and partial provider failure.
+- OAuth access and refresh credentials are encrypted before persistence and cleared on
+  disconnect; templates, audit metadata, and tests expose no stored secret.
+- Permanent refresh-token revocation marks a connection expired; transient refresh failures
+  retain encrypted credentials for retry, and revoked and expired states render visibly.
+- Workspace-scoped managers and authorization tests prevent cross-workspace connection access.
+- Disconnect attempts provider revocation, preserves a reversible connection record, and
+  explicitly does not claim to delete previously stored email data.
+- Ruff formatting and linting, strict mypy, 26 automated tests, Django system checks,
+  migration drift checks, Tailwind asset compilation, and Compose validation pass.
+- Tests use mocked Google boundaries. No external service, live mailbox, email sync,
+  Gmail mutation, deployment, commit, push, or model call was performed.
+- Malformed Google sign-in session timestamps return the controlled OAuth error response.
+- Permanently revoked Gmail refresh credentials are cleared when the connection expires;
+  transient provider failures retain the encrypted credential envelope and connected state.
+- Gmail connections with retained credentials remain disconnectable for cleanup and revocation,
+  regardless of their current connection status.
+- Google sign-in redirect targets now use Django's host-and-scheme validator, including
+  same-host enforcement and HTTPS downgrade protection, with regression coverage.
+- Google sign-in rejects inactive users before identity binding, workspace membership,
+  or audit creation while preserving the conflicting-subject response.
+- Gmail consent validation now prefers Google's reported granted scopes, accepts the
+  userinfo email alias, rejects unapproved scopes, and safely handles omitted grant metadata.
 
 ## Open questions
 
@@ -109,6 +155,8 @@ Await approval to begin Build Unit 02: Google identity and read-only Gmail conse
 
 ## Resume notes
 
-Unit 01 is a clean rollback boundary before external identity or mailbox data. Do
-not begin Unit 02 without explicit approval. The current local runtime has no
-Google OAuth, Gmail access, model calls, or external writes.
+Unit 02 is a clean rollback boundary before any email import. Do not begin Unit 03
+without its specification and explicit approval. The repository currently supports
+Google identity and read-only Gmail authorization but has no email sync, Gmail
+mutation, model calls, or deployed external runtime. `context/specs/00-build-plan.md`
+is referenced by repository guidance but is currently absent and should be restored.

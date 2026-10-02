@@ -1,0 +1,12 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Delete Gmail data · Email Assistant</title><link rel="stylesheet" href="{% static 'dist/app.css' %}"></head>
+  <body class="settings-page">
+    <main class="settings-card">
+      <a class="back-link" href="{% url 'gmail-connection' %}">← Gmail settings</a>
+      <p class="eyebrow">Data controls</p><h1>Gmail data deletion</h1>
+      <p class="subtle">No email has been imported in this build unit. A complete, separately confirmed deletion workflow will be added with email storage. Disconnecting Gmail remains a separate action.</p>
+    </main>
+  </body>
+</html>

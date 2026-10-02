@@ -1,3 +1,5 @@
+import os
+
 from .base import *  # noqa: F403
 from .base import env
 
@@ -7,3 +9,7 @@ WHITENOISE_USE_FINDERS = True
 
 if not DEBUG:
     raise RuntimeError("The local settings module requires DJANGO_DEBUG=true")
+
+# OAuthLib otherwise rejects the documented localhost HTTP callback. This setting
+# exists only in the local settings module and must never be copied to hosted config.
+os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")

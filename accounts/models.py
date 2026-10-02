@@ -9,6 +9,8 @@ from .managers import WorkspaceScopedManager
 class User(AbstractUser):
     """Application identity; Gmail authorization is deliberately separate."""
 
+    google_subject = models.CharField(max_length=255, unique=True, null=True, blank=True)
+
 
 class Workspace(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

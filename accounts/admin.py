@@ -3,7 +3,12 @@ from django.contrib.auth.admin import UserAdmin
 
 from .models import Membership, User, Workspace
 
-admin.site.register(User, UserAdmin)
+
+@admin.register(User)
+class ApplicationUserAdmin(UserAdmin):  # type: ignore[type-arg]
+    readonly_fields = ("google_subject",)
+
+
 admin.site.register(Workspace)
 
 

@@ -22,6 +22,7 @@ INSTALLED_APPS = [
     "django_celery_beat",
     "django_htmx",
     "accounts",
+    "gmail",
     "dashboard",
     "operations",
 ]
@@ -104,3 +105,7 @@ CACHES = {
 }
 
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
+GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
+GOOGLE_TOKEN_ENCRYPTION_KEY = env("GOOGLE_TOKEN_ENCRYPTION_KEY", default="")

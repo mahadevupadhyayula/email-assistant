@@ -1,0 +1,48 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gmail connection · Email Assistant</title>
+    <link rel="stylesheet" href="{% static 'dist/app.css' %}">
+  </head>
+  <body class="settings-page">
+    <main class="settings-card">
+      <a class="back-link" href="{% url 'command-center' %}">← Command center</a>
+      <p class="eyebrow">Workspace settings</p>
+      <h1>Gmail connection</h1>
+      {% for message in messages %}<p class="notice notice-{{ message.tags }}" role="status">{{ message }}</p>{% endfor %}
+      {% if connection and connection.status == "connected" %}
+        <section class="connection-summary" aria-labelledby="connection-title">
+          <span class="state-label state-success">Connected · Read only</span>
+          <h2 id="connection-title">{{ connection.email_address }}</h2>
+          <p class="subtle">Email Assistant can read Gmail messages and metadata. It cannot send, delete, archive, label, or mark messages read.</p>
+          <dl class="detail-list">
+            <div><dt>Status</dt><dd>{{ connection.get_status_display }}</dd></div>
+            <div><dt>Connected</dt><dd><time datetime="{{ connection.connected_at|date:'c' }}">{{ connection.connected_at|date:"M j, Y, P T" }}</time></dd></div>
+          </dl>
+        </section>
+      {% else %}
+        {% if connection %}
+          <p class="state-label state-warning">{{ connection.get_status_display }}</p>
+          <p class="subtle">Reconnect to restore read-only inbox access. Previously stored inbox data is kept separately.</p>
+        {% else %}
+          <p class="subtle">Your Google identity is signed in, but Gmail access has not been granted.</p>
+        {% endif %}
+        <a class="primary-button button-link" href="{% url 'gmail-connect' %}">Review Gmail access</a>
+      {% endif %}
+      {% if connection and connection.encrypted_credentials %}
+        <form method="post" action="{% url 'gmail-disconnect' %}">
+          {% csrf_token %}
+          <button class="secondary-button" type="submit">Disconnect Gmail</button>
+        </form>
+      {% endif %}
+      <aside class="data-note">
+        <h2>Disconnecting does not delete data</h2>
+        <p class="subtle">Disconnect removes stored credentials and stops future access. Any email data already stored remains subject to the 90-day retention policy.</p>
+        <a href="{% url 'gmail-delete-data' %}">Review the separate deletion path</a>
+      </aside>
+    </main>
+  </body>
+</html>
